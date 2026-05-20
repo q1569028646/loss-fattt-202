@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "react-native-architecture": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "skillPath": "plugins/frontend-mobile-development/skills/react-native-architecture/SKILL.md",
+      "computedHash": "7c3fd00a36007d27bf707db8830101d03906c176b46d1da01dfa85e1755414d3"
+    }
+  }
+}
