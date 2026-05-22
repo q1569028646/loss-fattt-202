@@ -34,6 +34,7 @@ interface ProfileState {
   weightEntries: WeightEntry[];
   initialized: boolean;
   initialize: () => Promise<void>;
+  updateProfile: (updates: Partial<Pick<UserProfile, 'gender' | 'age' | 'heightCm' | 'weightKg' | 'goalWeightKg' | 'activityLevel' | 'weightGoal'>>) => void;
   setGender: (gender: Gender) => void;
   setAge: (age: number) => void;
   setHeight: (heightCm: number) => void;
@@ -82,47 +83,19 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
     }
   },
 
-  setGender: (gender) => {
-    const updated = recalculateTargets({ ...get().profile, gender });
+  updateProfile: (updates) => {
+    const updated = recalculateTargets({ ...get().profile, ...updates });
     set({ profile: updated });
     setItemAsync(PROFILE_KEY, JSON.stringify(updated));
   },
 
-  setAge: (age) => {
-    const updated = recalculateTargets({ ...get().profile, age });
-    set({ profile: updated });
-    setItemAsync(PROFILE_KEY, JSON.stringify(updated));
-  },
-
-  setHeight: (heightCm) => {
-    const updated = recalculateTargets({ ...get().profile, heightCm });
-    set({ profile: updated });
-    setItemAsync(PROFILE_KEY, JSON.stringify(updated));
-  },
-
-  setWeight: (weightKg) => {
-    const updated = recalculateTargets({ ...get().profile, weightKg });
-    set({ profile: updated });
-    setItemAsync(PROFILE_KEY, JSON.stringify(updated));
-  },
-
-  setGoalWeight: (goalWeightKg) => {
-    const updated = recalculateTargets({ ...get().profile, goalWeightKg });
-    set({ profile: updated });
-    setItemAsync(PROFILE_KEY, JSON.stringify(updated));
-  },
-
-  setActivityLevel: (activityLevel) => {
-    const updated = recalculateTargets({ ...get().profile, activityLevel });
-    set({ profile: updated });
-    setItemAsync(PROFILE_KEY, JSON.stringify(updated));
-  },
-
-  setWeightGoal: (weightGoal) => {
-    const updated = recalculateTargets({ ...get().profile, weightGoal });
-    set({ profile: updated });
-    setItemAsync(PROFILE_KEY, JSON.stringify(updated));
-  },
+  setGender: (gender) => get().updateProfile({ gender }),
+  setAge: (age) => get().updateProfile({ age }),
+  setHeight: (heightCm) => get().updateProfile({ heightCm }),
+  setWeight: (weightKg) => get().updateProfile({ weightKg }),
+  setGoalWeight: (goalWeightKg) => get().updateProfile({ goalWeightKg }),
+  setActivityLevel: (activityLevel) => get().updateProfile({ activityLevel }),
+  setWeightGoal: (weightGoal) => get().updateProfile({ weightGoal }),
 
   completeOnboarding: async () => {
     const updated = { ...get().profile, isOnboarded: true };
@@ -130,11 +103,7 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
     set({ profile: updated });
   },
 
-  updateWeight: (weightKg) => {
-    const updated = recalculateTargets({ ...get().profile, weightKg });
-    set({ profile: updated });
-    setItemAsync(PROFILE_KEY, JSON.stringify(updated));
-  },
+  updateWeight: (weightKg) => get().updateProfile({ weightKg }),
 
   addWeightEntry: async (weightKg, bodyFatPercent) => {
     const entry: WeightEntry = {

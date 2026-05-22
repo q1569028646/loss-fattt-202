@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Line, Circle, Text as SvgText, G, Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
+import Svg, { Line, Circle, Text as SvgText, G, Defs, LinearGradient, Stop, Path } from 'react-native-svg';
 import { COLORS } from '../../utils/constants';
 import { useProfileStore } from '../../stores/profileStore';
 import { useFoodStore } from '../../stores/foodStore';
@@ -26,34 +26,31 @@ export default function ProgressScreen() {
 
   const points = [...(weightEntries || [])].slice(-14);
 
-  // 构建热量趋势数据
-  const calorieTrendData = useMemo(() => {
-    const map = new Map<string, { date: string; calories: number }>();
+  const dateRangeKeys = useMemo(() => {
+    const keys: string[] = [];
     const now = new Date();
     for (let i = 13; i >= 0; i--) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      map.set(key, { date: key, calories: 0 });
+      keys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
     }
+    return keys;
+  }, []);
+
+  const calorieTrendData = useMemo(() => {
+    const map = new Map<string, { date: string; calories: number }>();
+    dateRangeKeys.forEach(key => map.set(key, { date: key, calories: 0 }));
     allEntries.forEach(e => {
       const key = new Date(e.createdAt).toISOString().split('T')[0];
       const existing = map.get(key);
       if (existing) existing.calories += e.calories || 0;
     });
     return Array.from(map.values());
-  }, [allEntries]);
+  }, [allEntries, dateRangeKeys]);
 
-  // 构建营养素趋势数据
   const nutrientTrendData = useMemo(() => {
     const map = new Map<string, { date: string; protein: number; carbs: number; fat: number }>();
-    const now = new Date();
-    for (let i = 13; i >= 0; i--) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      map.set(key, { date: key, protein: 0, carbs: 0, fat: 0 });
-    }
+    dateRangeKeys.forEach(key => map.set(key, { date: key, protein: 0, carbs: 0, fat: 0 }));
     allEntries.forEach(e => {
       const key = new Date(e.createdAt).toISOString().split('T')[0];
       const existing = map.get(key);
@@ -64,7 +61,7 @@ export default function ProgressScreen() {
       }
     });
     return Array.from(map.values());
-  }, [allEntries]);
+  }, [allEntries, dateRangeKeys]);
 
   const addWeight = async () => {
     const weight = parseFloat(newWeight);
@@ -129,17 +126,13 @@ export default function ProgressScreen() {
 
           {/* 曲线面积 */}
           {points.length >= 2 && (
-            <G>
-              {/* 面积填充 */}
-              {(() => {
-                const areaPath = points.map((p, i) => {
-                  const cmd = i === 0 ? 'M' : 'L';
-                  return `${cmd}${toX(i)},${toY(p.weightKg)}`;
-                }).join(' ');
-                const closePath = `${areaPath} L${toX(points.length - 1)},${chartHeight} L${toX(0)},${chartHeight} Z`;
-                return <Rect x="0" y="0" width={chartWidth} height={chartHeight} fill="url(#areaGrad)" opacity={0} />;
-              })()}
-            </G>
+            <Path
+              d={points.map((p, i) => {
+                const cmd = i === 0 ? 'M' : 'L';
+                return `${cmd}${toX(i)},${toY(p.weightKg)}`;
+              }).join(' ') + ` L${toX(points.length - 1)},${padding.top + plotH} L${toX(0)},${padding.top + plotH} Z`}
+              fill="url(#areaGrad)"
+            />
           )}
 
           {points.map((p, i) => {

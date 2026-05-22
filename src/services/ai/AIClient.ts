@@ -4,6 +4,7 @@ import type { FoodAnalysisResult, MultiFoodAnalysisResult, NutritionLabelResult,
 import { FOOD_ANALYSIS_SYSTEM_PROMPT } from './prompts/foodAnalysis';
 import { NUTRITION_LABEL_SYSTEM_PROMPT } from './prompts/nutritionLabel';
 import { DEEPSEEK_OCR_USER_PROMPT, parseDeepSeekOCRResponse } from './prompts/nutritionLabelDeepSeek';
+import { TEXT_FOOD_ANALYSIS_SYSTEM_PROMPT } from './prompts/textFoodAnalysis';
 import { buildCoachSystemPrompt } from './prompts/coach';
 import { 
   validateMultiFoodAnalysisResult, 
@@ -109,7 +110,7 @@ export class AIClient {
   async analyzeNutritionLabel(imageBase64: string): Promise<NutritionLabelResult> {
     try {
       return await withRetry(async () => {
-        const isDeepSeekOCR = this.config.models.ocr.toLowerCase().includes('deepseek') && 
+        const isDeepSeekOCR = this.config.models.ocr.toLowerCase().includes('deepseek') &&
                                this.config.models.ocr.toLowerCase().includes('ocr');
 
         let response;
@@ -119,18 +120,26 @@ export class AIClient {
             messages: [
               {
                 role: 'user',
-                content: `<image>\n<|grounding|>告诉我图片里的营养成分表有什么内容？`,
+                content: [
+                  {
+                    type: 'image_url',
+                    image_url: { url: `data:image/jpeg;base64,${imageBase64}` },
+                  },
+                  {
+                    type: 'text',
+                    text: DEEPSEEK_OCR_USER_PROMPT,
+                  },
+                ],
               },
             ],
-            max_tokens: 2048,
+            max_tokens: 4096,
             temperature: 0.05,
           });
         } else {
-          // 通用方案：支持 response_format: json_object
-          response = await this.client.chat.completions.create({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const params: any = {
             model: this.config.models.ocr,
             messages: [
-              { role: 'system', content: NUTRITION_LABEL_SYSTEM_PROMPT },
               {
                 role: 'user',
                 content: [
@@ -138,13 +147,24 @@ export class AIClient {
                     type: 'image_url',
                     image_url: { url: `data:image/jpeg;base64,${imageBase64}` },
                   },
+                  {
+                    type: 'text',
+                    text: NUTRITION_LABEL_SYSTEM_PROMPT,
+                  },
                 ],
               },
             ],
-            max_tokens: 1024,
+            max_tokens: 4096,
             temperature: 0.05,
-            response_format: { type: 'json_object' },
-          });
+          };
+
+          try {
+            params.response_format = { type: 'json_object' };
+            response = await this.client.chat.completions.create(params);
+          } catch {
+            delete params.response_format;
+            response = await this.client.chat.completions.create(params);
+          }
         }
 
         const content = response.choices[0]?.message?.content;
@@ -155,6 +175,9 @@ export class AIClient {
           parsed = parseDeepSeekOCRResponse(content);
         } else {
           parsed = safeJsonParse(content);
+          if (!parsed || typeof parsed !== 'object') {
+            parsed = parseDeepSeekOCRResponse(content);
+          }
         }
 
         return validateNutritionLabelResult(parsed);
@@ -181,19 +204,23 @@ export class AIClient {
     }
   }
 
-  async chatWithCoach(
-    messages: ChatMessage[],
-    userProfile: UserProfile,
-    foodLog: FoodEntry[]
-  ): Promise<ReadableStream<string> | string> {
+  private formatCoachMessages(messages: ChatMessage[], userProfile: UserProfile, foodLog: FoodEntry[]) {
     const systemPrompt = buildCoachSystemPrompt(userProfile, foodLog);
-    const formattedMessages = [
+    return [
       { role: 'system' as const, content: systemPrompt },
       ...messages.slice(-10).map(m => ({
         role: m.role as 'user' | 'assistant',
         content: m.content,
       })),
     ];
+  }
+
+  async chatWithCoach(
+    messages: ChatMessage[],
+    userProfile: UserProfile,
+    foodLog: FoodEntry[]
+  ): Promise<ReadableStream<string> | string> {
+    const formattedMessages = this.formatCoachMessages(messages, userProfile, foodLog);
 
     return withRetry(async () => {
       const response = await this.client.chat.completions.create({
@@ -217,14 +244,7 @@ export class AIClient {
     userProfile: UserProfile,
     foodLog: FoodEntry[]
   ): Promise<string> {
-    const systemPrompt = buildCoachSystemPrompt(userProfile, foodLog);
-    const formattedMessages = [
-      { role: 'system' as const, content: systemPrompt },
-      ...messages.slice(-10).map(m => ({
-        role: m.role as 'user' | 'assistant',
-        content: m.content,
-      })),
-    ];
+    const formattedMessages = this.formatCoachMessages(messages, userProfile, foodLog);
 
     return withRetry(async () => {
       const response = await this.client.chat.completions.create({
@@ -234,6 +254,31 @@ export class AIClient {
       });
 
       return response.choices[0]?.message?.content || '';
+    });
+  }
+
+  async analyzeTextFood(textDescription: string): Promise<MultiFoodAnalysisResult> {
+    if (!textDescription.trim()) {
+      return { items: [], error: '请输入食物描述' };
+    }
+
+    return withRetry(async () => {
+      const response = await this.client.chat.completions.create({
+        model: this.config.models.chat,
+        messages: [
+          { role: 'system', content: TEXT_FOOD_ANALYSIS_SYSTEM_PROMPT },
+          { role: 'user', content: textDescription },
+        ],
+        max_tokens: 1024,
+        temperature: 0.3,
+        response_format: { type: 'json_object' },
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (!content) throw new Error('Empty response from AI');
+
+      const parsed = safeJsonParse(content);
+      return validateMultiFoodAnalysisResult(parsed);
     });
   }
 }

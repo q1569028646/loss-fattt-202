@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput } from 'react-native';
 import { COLORS } from '../../utils/constants';
+import { kjToKcal, kcalToKj } from '../../utils/formatters';
 
 interface KjKcalConverterProps {
   visible: boolean;
   onClose: () => void;
+  onUseKcal?: (kcal: number) => void;
 }
 
-export function KjKcalConverter({ visible, onClose }: KjKcalConverterProps) {
+export function KjKcalConverter({ visible, onClose, onUseKcal }: KjKcalConverterProps) {
   const [kjValue, setKjValue] = useState('');
   const [kcalValue, setKcalValue] = useState('');
   const [activeField, setActiveField] = useState<'kj' | 'kcal'>('kj');
@@ -17,7 +19,7 @@ export function KjKcalConverter({ visible, onClose }: KjKcalConverterProps) {
     setActiveField('kj');
     const num = parseFloat(text);
     if (!isNaN(num) && num > 0) {
-      setKcalValue(String(Math.round((num / 4.184) * 10) / 10));
+      setKcalValue(String(kjToKcal(num)));
     } else {
       setKcalValue('');
     }
@@ -28,9 +30,17 @@ export function KjKcalConverter({ visible, onClose }: KjKcalConverterProps) {
     setActiveField('kcal');
     const num = parseFloat(text);
     if (!isNaN(num) && num > 0) {
-      setKjValue(String(Math.round(num * 4.184 * 10) / 10));
+      setKjValue(String(kcalToKj(num)));
     } else {
       setKjValue('');
+    }
+  };
+
+  const handleUseKcal = () => {
+    const kcal = parseFloat(kcalValue);
+    if (!isNaN(kcal) && kcal > 0 && onUseKcal) {
+      onUseKcal(kcal);
+      handleClose();
     }
   };
 
@@ -40,6 +50,8 @@ export function KjKcalConverter({ visible, onClose }: KjKcalConverterProps) {
     setActiveField('kj');
     onClose();
   };
+
+  const hasKcalResult = kcalValue && !isNaN(parseFloat(kcalValue)) && parseFloat(kcalValue) > 0;
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
@@ -103,6 +115,12 @@ export function KjKcalConverter({ visible, onClose }: KjKcalConverterProps) {
           <View style={styles.formulaRow}>
             <Text style={styles.formulaText}>公式: 1 kcal = 4.184 kJ</Text>
           </View>
+
+          {onUseKcal && hasKcalResult && (
+            <TouchableOpacity style={styles.useButton} onPress={handleUseKcal}>
+              <Text style={styles.useButtonText}>✓ 使用 {kcalValue} kcal</Text>
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity style={styles.doneButton} onPress={handleClose}>
             <Text style={styles.doneButtonText}>关闭</Text>
@@ -217,6 +235,18 @@ const styles = StyleSheet.create({
   formulaText: {
     fontSize: 12,
     color: '#BDBDBD',
+  },
+  useButton: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  useButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   doneButton: {
     backgroundColor: '#F5F5F5',

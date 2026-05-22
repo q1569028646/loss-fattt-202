@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, Modal, ScrollView, Alert } from 'react-native';
 import { COLORS, MEAL_LABELS } from '../../utils/constants';
-import { searchFoods, FOOD_CATEGORIES, FoodDBItem, loadCustomFoods, addCustomFood, updateCustomFood, deleteCustomFood, CustomFoodInput, isCustomFoodId } from '../../data/foods';
+import { searchFoods, FOOD_CATEGORIES, FoodDBItem, loadCustomFoods, addCustomFood, updateCustomFood, deleteCustomFood, CustomFoodInput, isCustomFoodId, ServingUnit, loadServingUnits, addServingUnit, removeServingUnit } from '../../data/foods';
 import type { MealType } from '../../types';
 
 interface Props {
@@ -28,6 +28,12 @@ export function FoodSearchModal({ visible, onClose, onSelect, selectedMeal }: Pr
   const [formProtein, setFormProtein] = useState('');
   const [formCarbs, setFormCarbs] = useState('');
   const [formFat, setFormFat] = useState('');
+  const [servingUnits, setServingUnits] = useState<ServingUnit[]>([]);
+  const [activeUnit, setActiveUnit] = useState<ServingUnit | null>(null);
+  const [unitCount, setUnitCount] = useState(1);
+  const [showUnitForm, setShowUnitForm] = useState(false);
+  const [newUnitLabel, setNewUnitLabel] = useState('');
+  const [newUnitGrams, setNewUnitGrams] = useState('');
 
   useEffect(() => {
     if (visible) {
@@ -59,6 +65,9 @@ export function FoodSearchModal({ visible, onClose, onSelect, selectedMeal }: Pr
     setSelectedFood(food);
     setGrams(food.serving_size_grams);
     setCustomGrams('');
+    setActiveUnit(null);
+    setUnitCount(1);
+    loadServingUnits(food.id).then(setServingUnits);
   }, []);
 
   const handleAdd = useCallback(async () => {
@@ -67,6 +76,9 @@ export function FoodSearchModal({ visible, onClose, onSelect, selectedMeal }: Pr
       setSelectedFood(null);
       setGrams(100);
       setCustomGrams('');
+      setActiveUnit(null);
+      setUnitCount(1);
+      setServingUnits([]);
     }
   }, [selectedFood, selectedMeal, grams, onSelect]);
 
@@ -77,6 +89,9 @@ export function FoodSearchModal({ visible, onClose, onSelect, selectedMeal }: Pr
     setCategory(undefined);
     setGrams(100);
     setCustomGrams('');
+    setActiveUnit(null);
+    setUnitCount(1);
+    setServingUnits([]);
     onClose();
   }, [onClose]);
 
@@ -89,6 +104,7 @@ export function FoodSearchModal({ visible, onClose, onSelect, selectedMeal }: Pr
   const handleGramPreset = useCallback((g: number) => {
     setGrams(g);
     setCustomGrams('');
+    setActiveUnit(null);
   }, []);
 
   const handleCustomGramChange = useCallback((text: string) => {
@@ -97,6 +113,81 @@ export function FoodSearchModal({ visible, onClose, onSelect, selectedMeal }: Pr
     if (!isNaN(parsed) && parsed > 0) {
       setGrams(parsed);
     }
+  }, []);
+
+  const handleUnitSelect = useCallback((unit: ServingUnit) => {
+    setActiveUnit(unit);
+    setUnitCount(prev => {
+      setGrams(prev * unit.grams);
+      return prev;
+    });
+  }, []);
+
+  const handleGramsMode = useCallback(() => {
+    setActiveUnit(null);
+    if (selectedFood) {
+      setGrams(selectedFood.serving_size_grams);
+      setCustomGrams('');
+    }
+  }, [selectedFood]);
+
+  const handleUnitCountChange = useCallback((delta: number) => {
+    setUnitCount(prev => {
+      const next = Math.max(1, prev + delta);
+      if (activeUnit) {
+        setGrams(next * activeUnit.grams);
+      }
+      return next;
+    });
+  }, [activeUnit]);
+
+  const handleUnitLongPress = useCallback((unit: ServingUnit) => {
+    Alert.alert(
+      '删除单位',
+      `确定要删除单位"${unit.label}"吗？`,
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '删除',
+          style: 'destructive',
+          onPress: async () => {
+            if (!selectedFood) return;
+            const updated = await removeServingUnit(selectedFood.id, unit.label);
+            setServingUnits(updated);
+            if (activeUnit?.label === unit.label) {
+              setActiveUnit(null);
+              setGrams(selectedFood.serving_size_grams);
+              setCustomGrams('');
+            }
+          },
+        },
+      ]
+    );
+  }, [selectedFood, activeUnit]);
+
+  const handleSaveUnit = useCallback(async () => {
+    if (!selectedFood) return;
+    const label = newUnitLabel.trim();
+    const g = parseFloat(newUnitGrams);
+    if (!label) {
+      Alert.alert('提示', '请输入单位名称');
+      return;
+    }
+    if (isNaN(g) || g <= 0) {
+      Alert.alert('提示', '请输入有效的克数');
+      return;
+    }
+    const updated = await addServingUnit(selectedFood.id, { label, grams: g });
+    setServingUnits(updated);
+    setShowUnitForm(false);
+    setNewUnitLabel('');
+    setNewUnitGrams('');
+  }, [selectedFood, newUnitLabel, newUnitGrams]);
+
+  const handleCancelUnitForm = useCallback(() => {
+    setShowUnitForm(false);
+    setNewUnitLabel('');
+    setNewUnitGrams('');
   }, []);
 
   const resetForm = useCallback(() => {
@@ -186,6 +277,14 @@ export function FoodSearchModal({ visible, onClose, onSelect, selectedMeal }: Pr
     );
   }, [selectedFood]);
 
+  const addBtnText = useMemo(() => {
+    if (!selectedFood) return '';
+    if (activeUnit) {
+      return `添加到${MEAL_LABELS[selectedMeal]} (${unitCount}${activeUnit.label} = ${Math.round(grams)}g)`;
+    }
+    return `添加到${MEAL_LABELS[selectedMeal]} (${Math.round(grams)}g)`;
+  }, [selectedFood, selectedMeal, activeUnit, unitCount, grams]);
+
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={handleClose}>
       <View style={styles.container}>
@@ -234,7 +333,7 @@ export function FoodSearchModal({ visible, onClose, onSelect, selectedMeal }: Pr
         </View>
 
         {selectedFood ? (
-          <View style={styles.selectedCard}>
+          <ScrollView style={styles.selectedCardScroll} contentContainerStyle={styles.selectedCard}>
             <View style={styles.selectedHeader}>
               <View style={styles.selectedInfo}>
                 <Text style={styles.selectedName}>{selectedFood.name}</Text>
@@ -260,35 +359,81 @@ export function FoodSearchModal({ visible, onClose, onSelect, selectedMeal }: Pr
               <View style={styles.nutrientBox}><Text style={[styles.nutrientVal, { color: COLORS.carbs }]}>{(selectedFood.nutrients.carbs_g * grams / selectedFood.serving_size_grams).toFixed(1)}</Text><Text style={styles.nutrientLbl}>碳水g</Text></View>
               <View style={styles.nutrientBox}><Text style={[styles.nutrientVal, { color: COLORS.fat }]}>{(selectedFood.nutrients.fat_g * grams / selectedFood.serving_size_grams).toFixed(1)}</Text><Text style={styles.nutrientLbl}>脂肪g</Text></View>
             </View>
-            <View style={styles.gramsSection}>
-              <Text style={styles.gramsLabel}>克数</Text>
-              <View style={styles.gramPresets}>
-                {GRAM_PRESETS.map(g => (
+
+            <View style={styles.unitSection}>
+              <Text style={styles.unitSectionLabel}>单位</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.unitChipRow}>
+                {servingUnits.map(unit => (
                   <TouchableOpacity
-                    key={g}
-                    style={[styles.gramChip, grams === g && !customGrams && styles.gramChipActive]}
-                    onPress={() => handleGramPreset(g)}
+                    key={unit.label}
+                    style={[styles.unitChip, activeUnit?.label === unit.label && styles.unitChipActive]}
+                    onPress={() => handleUnitSelect(unit)}
+                    onLongPress={() => handleUnitLongPress(unit)}
                   >
-                    <Text style={[styles.gramChipText, grams === g && !customGrams && styles.gramChipTextActive]}>{g}g</Text>
+                    <Text style={[styles.unitChipText, activeUnit?.label === unit.label && styles.unitChipTextActive]}>{unit.label}</Text>
                   </TouchableOpacity>
                 ))}
-              </View>
-              <View style={styles.customGramRow}>
-                <TextInput
-                  style={styles.customGramInput}
-                  value={customGrams}
-                  onChangeText={handleCustomGramChange}
-                  placeholder="自定义"
-                  placeholderTextColor="#BDBDBD"
-                  keyboardType="decimal-pad"
-                />
-                <Text style={styles.customGramUnit}>g</Text>
-              </View>
+                <TouchableOpacity
+                  style={[styles.unitChip, !activeUnit && styles.unitChipActive]}
+                  onPress={handleGramsMode}
+                >
+                  <Text style={[styles.unitChipText, !activeUnit && styles.unitChipTextActive]}>克</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.unitChipAdd}
+                  onPress={() => setShowUnitForm(true)}
+                >
+                  <Text style={styles.unitChipAddText}>+</Text>
+                </TouchableOpacity>
+              </ScrollView>
             </View>
+
+            {activeUnit ? (
+              <View style={styles.countSection}>
+                <Text style={styles.countLabel}>数量</Text>
+                <View style={styles.countRow}>
+                  <TouchableOpacity style={styles.countBtn} onPress={() => handleUnitCountChange(-1)}>
+                    <Text style={styles.countBtnText}>-</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.countValue}>{unitCount}</Text>
+                  <TouchableOpacity style={styles.countBtn} onPress={() => handleUnitCountChange(1)}>
+                    <Text style={styles.countBtnText}>+</Text>
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.countGrams}>= {Math.round(unitCount * activeUnit.grams)}g</Text>
+              </View>
+            ) : (
+              <View style={styles.gramsSection}>
+                <Text style={styles.gramsLabel}>克数</Text>
+                <View style={styles.gramPresets}>
+                  {GRAM_PRESETS.map(g => (
+                    <TouchableOpacity
+                      key={g}
+                      style={[styles.gramChip, grams === g && !customGrams && styles.gramChipActive]}
+                      onPress={() => handleGramPreset(g)}
+                    >
+                      <Text style={[styles.gramChipText, grams === g && !customGrams && styles.gramChipTextActive]}>{g}g</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <View style={styles.customGramRow}>
+                  <TextInput
+                    style={styles.customGramInput}
+                    value={customGrams}
+                    onChangeText={handleCustomGramChange}
+                    placeholder="自定义"
+                    placeholderTextColor="#BDBDBD"
+                    keyboardType="decimal-pad"
+                  />
+                  <Text style={styles.customGramUnit}>g</Text>
+                </View>
+              </View>
+            )}
+
             <TouchableOpacity style={styles.addBtn} onPress={handleAdd}>
-              <Text style={styles.addBtnText}>添加到{MEAL_LABELS[selectedMeal]} ({Math.round(grams)}g)</Text>
+              <Text style={styles.addBtnText}>{addBtnText}</Text>
             </TouchableOpacity>
-          </View>
+          </ScrollView>
         ) : (
           <FlatList
             ref={flatListRef}
@@ -391,6 +536,39 @@ export function FoodSearchModal({ visible, onClose, onSelect, selectedMeal }: Pr
           </View>
         </View>
       </Modal>
+
+      <Modal visible={showUnitForm} transparent animationType="fade" onRequestClose={handleCancelUnitForm}>
+        <View style={styles.formOverlay}>
+          <View style={styles.formCard}>
+            <Text style={styles.formTitle}>添加单位</Text>
+            <Text style={styles.formLabel}>单位名称</Text>
+            <TextInput
+              style={styles.formInput}
+              value={newUnitLabel}
+              onChangeText={setNewUnitLabel}
+              placeholder="例：个、碗、片、杯"
+              placeholderTextColor="#BDBDBD"
+            />
+            <Text style={styles.formLabel}>1个单位 = 多少克</Text>
+            <TextInput
+              style={styles.formInput}
+              value={newUnitGrams}
+              onChangeText={setNewUnitGrams}
+              placeholder="0"
+              placeholderTextColor="#BDBDBD"
+              keyboardType="decimal-pad"
+            />
+            <View style={styles.formActions}>
+              <TouchableOpacity style={styles.formCancelBtn} onPress={handleCancelUnitForm}>
+                <Text style={styles.formCancelText}>取消</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.formSaveBtn} onPress={handleSaveUnit}>
+                <Text style={styles.formSaveText}>保存</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </Modal>
   );
 }
@@ -425,7 +603,8 @@ const styles = StyleSheet.create({
   emptyContainer: { alignItems: 'center', paddingVertical: 60 },
   emptyText: { fontSize: 16, color: COLORS.textSecondary },
   emptyHint: { fontSize: 13, color: '#BDBDBD', marginTop: 8 },
-  selectedCard: { backgroundColor: '#FFFFFF', margin: 16, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: COLORS.primaryLight },
+  selectedCardScroll: { flex: 1 },
+  selectedCard: { backgroundColor: '#FFFFFF', margin: 16, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: COLORS.primaryLight, flexGrow: 1 },
   selectedHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
   selectedInfo: { flex: 1 },
   selectedName: { fontSize: 20, fontWeight: '700', color: COLORS.text },
@@ -438,13 +617,22 @@ const styles = StyleSheet.create({
   nutrientBox: { alignItems: 'center' },
   nutrientVal: { fontSize: 20, fontWeight: '700', color: COLORS.text },
   nutrientLbl: { fontSize: 10, color: COLORS.textSecondary, marginTop: 2 },
-  servingsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  servingsLabel: { fontSize: 14, color: COLORS.textSecondary, marginRight: 12 },
-  servingsBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F0F0F0', alignItems: 'center', justifyContent: 'center' },
-  servingsBtnText: { fontSize: 20, color: COLORS.text, fontWeight: '600' },
-  servingsValue: { fontSize: 18, fontWeight: '700', color: COLORS.text, marginHorizontal: 16, minWidth: 40, textAlign: 'center' },
-  addBtn: { backgroundColor: COLORS.primary, borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
-  addBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
+  unitSection: { marginBottom: 14 },
+  unitSectionLabel: { fontSize: 14, fontWeight: '500', color: COLORS.textSecondary, marginBottom: 8 },
+  unitChipRow: { flexDirection: 'row', maxHeight: 36 },
+  unitChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 14, backgroundColor: '#F0F0F0', marginRight: 6 },
+  unitChipActive: { backgroundColor: COLORS.primary },
+  unitChipText: { fontSize: 13, color: COLORS.textSecondary, fontWeight: '500' },
+  unitChipTextActive: { color: '#FFFFFF' },
+  unitChipAdd: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 14, backgroundColor: '#E8F5E9', borderWidth: 1, borderColor: '#C8E6C9', borderStyle: 'dashed', marginRight: 6 },
+  unitChipAddText: { fontSize: 15, color: COLORS.primary, fontWeight: '700' },
+  countSection: { alignItems: 'center', marginBottom: 16 },
+  countLabel: { fontSize: 14, fontWeight: '500', color: COLORS.textSecondary, marginBottom: 10 },
+  countRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  countBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F0F0F0', alignItems: 'center', justifyContent: 'center' },
+  countBtnText: { fontSize: 22, color: COLORS.text, fontWeight: '600' },
+  countValue: { fontSize: 24, fontWeight: '700', color: COLORS.text, marginHorizontal: 24, minWidth: 48, textAlign: 'center' },
+  countGrams: { fontSize: 13, color: COLORS.textSecondary },
   gramsSection: { marginBottom: 16 },
   gramsLabel: { fontSize: 14, fontWeight: '500', color: COLORS.textSecondary, marginBottom: 8 },
   gramPresets: { flexDirection: 'row', marginBottom: 10, gap: 6 },
@@ -455,6 +643,8 @@ const styles = StyleSheet.create({
   customGramRow: { flexDirection: 'row', alignItems: 'center' },
   customGramInput: { backgroundColor: '#F5F5F5', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, fontSize: 14, color: COLORS.text, width: 80, textAlign: 'center' },
   customGramUnit: { fontSize: 14, color: COLORS.textSecondary, marginLeft: 6 },
+  addBtn: { backgroundColor: COLORS.primary, borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
+  addBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
   resultNameRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
   customBadge: { backgroundColor: '#E8F5E9', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 6 },
   customBadgeText: { fontSize: 10, color: COLORS.primary, fontWeight: '600' },

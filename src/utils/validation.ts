@@ -9,6 +9,7 @@ import type {
   NutritionLabelResult,
   Nutrients 
 } from '../types';
+import { kjToKcal, kcalToKj } from './formatters';
 
 // 验证数值是否在合理范围内
 function isValidNumber(value: unknown, min = 0, max = Infinity): value is number {
@@ -56,26 +57,48 @@ function validateNutrients(data: unknown): Nutrients {
   };
 }
 
-// 验证单个食物分析结果
-export function validateFoodAnalysisResult(data: unknown): FoodAnalysisResult {
+// 验证单个食物分析结果（基础版本，用于处理AI返回的简化格式）
+function validateBasicFoodAnalysisItem(data: unknown): {
+  food_name: string;
+  serving_size_grams: number;
+  serving_description: string;
+  confidence: number;
+} {
   const item = data as Record<string, unknown>;
-  
   return {
     food_name: isValidString(item?.food_name) ? item.food_name : '未知食物',
     serving_size_grams: isValidNumber(item?.serving_size_grams, 1, 5000) ? item.serving_size_grams : 100,
     serving_description: isValidString(item?.serving_description) ? item.serving_description : '1份',
-    nutrients: validateNutrients(item?.nutrients),
+    confidence: isValidNumber(item?.confidence, 0, 1) ? item.confidence : 0.5,
+  };
+}
+
+// 验证单个食物分析结果
+export function validateFoodAnalysisResult(data: unknown): FoodAnalysisResult {
+  const item = data as Record<string, unknown>;
+  
+  const baseResult: FoodAnalysisResult = {
+    food_name: isValidString(item?.food_name) ? item.food_name : '未知食物',
+    serving_size_grams: isValidNumber(item?.serving_size_grams, 1, 5000) ? item.serving_size_grams : 100,
+    serving_description: isValidString(item?.serving_description) ? item.serving_description : '1份',
+    nutrients: item?.nutrients ? validateNutrients(item?.nutrients) : {
+      calories_kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0,
+      fiber_g: 0, sugar_g: 0, sodium_mg: 0, cholesterol_mg: 0,
+      potassium_mg: 0, vitamin_a_mcg: 0, vitamin_c_mg: 0,
+      calcium_mg: 0, iron_mg: 0,
+    },
     confidence: isValidNumber(item?.confidence, 0, 1) ? item.confidence : 0.5,
     notes: isValidString(item?.notes) ? item.notes : '',
     error: isValidString(item?.error) ? item.error : undefined,
   };
+  
+  return baseResult;
 }
 
 // 验证多食物分析结果
 export function validateMultiFoodAnalysisResult(data: unknown): MultiFoodAnalysisResult {
   const parsed = data as Record<string, unknown>;
   
-  // 如果有错误字段，直接返回错误
   if (isValidString(parsed?.error)) {
     return {
       items: [],
@@ -84,26 +107,18 @@ export function validateMultiFoodAnalysisResult(data: unknown): MultiFoodAnalysi
     };
   }
   
-  // 验证items数组
   let items: FoodAnalysisResult[] = [];
   if (Array.isArray(parsed?.items)) {
     items = parsed.items.map(validateFoodAnalysisResult);
   } else if (parsed?.food_name) {
-    // 兼容旧格式：单个食物对象
     items = [validateFoodAnalysisResult(parsed)];
   }
   
-  // 验证total_estimate
-  const total = parsed?.total_estimate as Record<string, unknown> | undefined;
   const total_estimate = {
-    calories_kcal: isValidNumber(total?.calories_kcal, 0, 50000) ? total.calories_kcal : 
-                   items.reduce((sum, item) => sum + item.nutrients.calories_kcal, 0),
-    protein_g: isValidNumber(total?.protein_g, 0, 5000) ? total.protein_g :
-               items.reduce((sum, item) => sum + item.nutrients.protein_g, 0),
-    carbs_g: isValidNumber(total?.carbs_g, 0, 5000) ? total.carbs_g :
-             items.reduce((sum, item) => sum + item.nutrients.carbs_g, 0),
-    fat_g: isValidNumber(total?.fat_g, 0, 5000) ? total.fat_g :
-           items.reduce((sum, item) => sum + item.nutrients.fat_g, 0),
+    calories_kcal: items.reduce((sum, item) => sum + item.nutrients.calories_kcal, 0),
+    protein_g: items.reduce((sum, item) => sum + item.nutrients.protein_g, 0),
+    carbs_g: items.reduce((sum, item) => sum + item.nutrients.carbs_g, 0),
+    fat_g: items.reduce((sum, item) => sum + item.nutrients.fat_g, 0),
   };
   
   return {
@@ -137,7 +152,7 @@ export function validateNutritionLabelResult(data: unknown): NutritionLabelResul
     };
   }
   
-  return {
+  const result = {
     energy_kj: toNumber(parsed?.energy_kj, 0, 50000, 0),
     energy_kcal: toNumber(parsed?.energy_kcal, 0, 50000, 0),
     protein_g: toNumber(parsed?.protein_g, 0, 5000, 0),
@@ -153,6 +168,14 @@ export function validateNutritionLabelResult(data: unknown): NutritionLabelResul
     serving_base_grams: toNumber(parsed?.serving_base_grams, 1, 5000, 100),
     product_name: isValidString(parsed?.product_name) ? parsed.product_name : '',
   };
+
+  if (result.energy_kj > 0 && result.energy_kcal === 0) {
+    result.energy_kcal = kjToKcal(result.energy_kj);
+  } else if (result.energy_kcal > 0 && result.energy_kj === 0) {
+    result.energy_kj = kcalToKj(result.energy_kcal);
+  }
+
+  return result;
 }
 
 // 安全解析JSON

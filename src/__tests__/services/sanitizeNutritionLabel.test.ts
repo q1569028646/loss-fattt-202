@@ -98,4 +98,46 @@ describe('validateNutritionLabelResult', () => {
     expect(result.serving_base_grams).toBe(100);
     expect(result.product_name).toBe('');
   });
+
+  it('auto-converts kJ to kcal when only kJ is provided', () => {
+    const input = {
+      energy_kj: 1520,
+      energy_kcal: 0,
+      protein_g: 12.5,
+    };
+    const result = validateNutritionLabelResult(input);
+    expect(result.energy_kj).toBe(1520);
+    expect(result.energy_kcal).toBe(363.3);
+  });
+
+  it('auto-converts kcal to kJ when only kcal is provided', () => {
+    const input = {
+      energy_kj: 0,
+      energy_kcal: 363,
+      protein_g: 12.5,
+    };
+    const result = validateNutritionLabelResult(input);
+    expect(result.energy_kcal).toBe(363);
+    expect(result.energy_kj).toBe(1518.8);
+  });
+
+  it('does not overwrite when both kJ and kcal are provided', () => {
+    const input = {
+      energy_kj: 1520,
+      energy_kcal: 363,
+    };
+    const result = validateNutritionLabelResult(input);
+    expect(result.energy_kj).toBe(1520);
+    expect(result.energy_kcal).toBe(363);
+  });
+
+  it('does not convert when both energy values are zero', () => {
+    const input = {
+      energy_kj: 0,
+      energy_kcal: 0,
+    };
+    const result = validateNutritionLabelResult(input);
+    expect(result.energy_kj).toBe(0);
+    expect(result.energy_kcal).toBe(0);
+  });
 });

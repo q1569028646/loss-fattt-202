@@ -1,16 +1,14 @@
-function dateToKey(ts: number): string {
-  const d = new Date(ts);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
+import { dateToKey } from './dateUtils';
+import type { FoodEntry } from '../types';
 
-export function calcStreak(entries: any[]): number {
+export function calcStreak(entries: FoodEntry[]): number {
   let streak = 0;
   const now = new Date();
   for (let i = 0; i < 365; i++) {
     const d = new Date(now);
     d.setDate(d.getDate() - i);
     const dk = dateToKey(d.getTime());
-    const has = entries.some((e: any) => {
+    const has = entries.some(e => {
       const ek = dateToKey(e.createdAt);
       return ek === dk && !e.deletedAt;
     });
@@ -21,20 +19,20 @@ export function calcStreak(entries: any[]): number {
   return streak;
 }
 
-export function countDaysInPeriod(entries: any[], days: number): number {
+export function countDaysInPeriod(entries: FoodEntry[], days: number): number {
   const now = new Date();
   let count = 0;
   for (let i = 0; i < days; i++) {
     const d = new Date(now);
     d.setDate(d.getDate() - i);
     const dk = dateToKey(d.getTime());
-    const has = entries.some((e: any) => dateToKey(e.createdAt) === dk && !e.deletedAt);
+    const has = entries.some(e => dateToKey(e.createdAt) === dk && !e.deletedAt);
     if (has) count++;
   }
   return count;
 }
 
-export function calcProteinStreak(entries: any[], target: number): number {
+export function calcProteinStreak(entries: FoodEntry[], target: number): number {
   if (target <= 0) return 0;
   let streak = 0;
   const now = new Date();
@@ -42,16 +40,16 @@ export function calcProteinStreak(entries: any[], target: number): number {
     const d = new Date(now);
     d.setDate(d.getDate() - i);
     const dk = dateToKey(d.getTime());
-    const dayEntries = entries.filter((e: any) => dateToKey(e.createdAt) === dk && !e.deletedAt);
+    const dayEntries = entries.filter(e => dateToKey(e.createdAt) === dk && !e.deletedAt);
     if (dayEntries.length === 0) break;
-    const totalProtein = dayEntries.reduce((s: number, e: any) => s + (e.protein || 0), 0);
+    const totalProtein = dayEntries.reduce((s, e) => s + (e.protein || 0), 0);
     if (totalProtein >= target) streak++;
     else break;
   }
   return streak;
 }
 
-export function calcDeficitStreak(entries: any[], dailyTarget: number): number {
+export function calcDeficitStreak(entries: FoodEntry[], dailyTarget: number): number {
   if (dailyTarget <= 0) return 0;
   let streak = 0;
   const now = new Date();
@@ -59,9 +57,9 @@ export function calcDeficitStreak(entries: any[], dailyTarget: number): number {
     const d = new Date(now);
     d.setDate(d.getDate() - i);
     const dk = dateToKey(d.getTime());
-    const dayEntries = entries.filter((e: any) => dateToKey(e.createdAt) === dk && !e.deletedAt);
+    const dayEntries = entries.filter(e => dateToKey(e.createdAt) === dk && !e.deletedAt);
     if (dayEntries.length === 0) break;
-    const totalCal = dayEntries.reduce((s: number, e: any) => s + (e.calories || 0), 0);
+    const totalCal = dayEntries.reduce((s, e) => s + (e.calories || 0), 0);
     if (totalCal < dailyTarget) streak++;
     else break;
   }

@@ -20,16 +20,8 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { QuickActions } from '../../components/home/QuickActions';
 import { useAchievementStore } from '../../stores/achievementStore';
 import { useExerciseStore } from '../../stores/exerciseStore';
+import { dateToKey, todayKey } from '../../utils/dateUtils';
 import type { MealType } from '../../types';
-
-function dateToKey(ts: number): string {
-  const d = new Date(ts);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function todayKey(): string {
-  return dateToKey(Date.now());
-}
 
 function formatDisplayDate(dateKey: string): string {
   const [y, m, d] = dateKey.split('-').map(Number);
@@ -161,7 +153,7 @@ export default function HomeScreen() {
             <Card>
               <View style={styles.deficitHeader}>
                 <Text style={styles.deficitLabel}>
-                  {isDeficit ? '🔥 热量缺口' : '⚠️ 热量超标'}
+                  {isDeficit ? '🔥 卡路里缺口' : '⚠️ 卡路里超标'}
                 </Text>
                 <Text style={[styles.deficitValue, isDeficit ? styles.deficitGoodText : styles.deficitBadText]}>
                   {isDeficit ? '' : '+'}{Math.abs(calorieDeficit)} kcal
@@ -220,7 +212,7 @@ export default function HomeScreen() {
               todayKey={selectedDate}
               dailyCalories={dailyCalories}
               proteinTarget={profile.proteinG || 0}
-              weightHistory={(weightEntries || []).map((e: any) => ({ date: e.date || e.createdAt, weight: e.weightKg }))}
+              weightHistory={(weightEntries || []).map(e => ({ date: dateToKey(e.createdAt), weight: e.weightKg }))}
               goalWeight={profile.goalWeightKg || 0}
               achievementProgress={getProgress()}
               onOpenAchievements={() => setShowAchievements(true)}

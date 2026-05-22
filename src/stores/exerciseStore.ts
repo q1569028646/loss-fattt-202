@@ -5,9 +5,10 @@
 
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { todayKey, generateId } from '../utils/dateUtils';
+import { todayKey, getStartOfDay, getEndOfDay, generateId } from '../utils/dateUtils';
+import type { ExerciseType, ExerciseEntry } from '../types';
 
-export type ExerciseType = 'running' | 'walking' | 'swimming' | 'cycling' | 'fitness' | 'yoga' | 'hiit' | 'ball' | 'other';
+export type { ExerciseType, ExerciseEntry };
 
 export const EXERCISE_TYPES: Record<ExerciseType, { label: string; emoji: string; kcalPer30min: number }> = {
   running: { label: '跑步', emoji: '🏃', kcalPer30min: 300 },
@@ -20,15 +21,6 @@ export const EXERCISE_TYPES: Record<ExerciseType, { label: string; emoji: string
   ball: { label: '球类', emoji: '⚽', kcalPer30min: 280 },
   other: { label: '其他', emoji: '🎯', kcalPer30min: 180 },
 };
-
-export interface ExerciseEntry {
-  id: string;
-  type: ExerciseType;
-  durationMin: number;
-  calories: number;
-  note?: string;
-  createdAt: number;
-}
 
 const EXERCISE_KEY = 'nutriflow_exercise_entries';
 
@@ -94,15 +86,15 @@ export const useExerciseStore = create<ExerciseState>((set, get) => ({
   },
 
   getTodayEntries: () => {
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    return get().entries.filter(e => e.createdAt >= todayStart.getTime());
+    const dk = todayKey();
+    const start = getStartOfDay(dk);
+    const end = getEndOfDay(dk);
+    return get().entries.filter(e => e.createdAt >= start && e.createdAt <= end);
   },
 
   getTotalByDate: (dateKey) => {
-    const [y, m, d] = dateKey.split('-').map(Number);
-    const start = new Date(y, m - 1, d, 0, 0, 0).getTime();
-    const end = new Date(y, m - 1, d, 23, 59, 59).getTime();
+    const start = getStartOfDay(dateKey);
+    const end = getEndOfDay(dateKey);
     const dayEntries = get().entries.filter(e => e.createdAt >= start && e.createdAt <= end);
     return {
       calories: dayEntries.reduce((sum, e) => sum + e.calories, 0),
@@ -111,11 +103,6 @@ export const useExerciseStore = create<ExerciseState>((set, get) => ({
   },
 
   getExerciseTotal: (dateKey) => {
-    const [y, m, d] = dateKey.split('-').map(Number);
-    const start = new Date(y, m - 1, d, 0, 0, 0).getTime();
-    const end = new Date(y, m - 1, d, 23, 59, 59).getTime();
-    return get().entries
-      .filter(e => e.createdAt >= start && e.createdAt <= end)
-      .reduce((sum, e) => sum + e.calories, 0);
+    return get().getTotalByDate(dateKey).calories;
   },
 }));

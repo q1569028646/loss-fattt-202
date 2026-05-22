@@ -23,7 +23,15 @@ export function MacroBar({ label, current, target, unit = 'g', color }: MacroBar
           {Math.round(current)}/{Math.round(target)}{unit}
         </Text>
       </View>
-      <View style={styles.track}>
+      <View
+        style={styles.track}
+        accessibilityRole="progressbar"
+        accessibilityValue={{ now: Math.round(percentage), min: 0, max: 100 }}
+        accessibilityLabel={`${label} ${Math.round(current)}/${Math.round(target)}${unit}`}
+        aria-valuenow={Math.round(percentage)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+      >
         <View style={[styles.fill, { transform: [{ scaleX: clampedPct }], backgroundColor: color }]} />
       </View>
     </View>

@@ -2,6 +2,14 @@ export function formatCalories(calories: number): string {
   return `${Math.round(calories)} kcal`;
 }
 
+export function kjToKcal(kj: number): number {
+  return Math.round((kj / 4.184) * 10) / 10;
+}
+
+export function kcalToKj(kcal: number): number {
+  return Math.round(kcal * 4.184 * 10) / 10;
+}
+
 export function formatGrams(grams: number): string {
   return `${Math.round(grams * 10) / 10}g`;
 }

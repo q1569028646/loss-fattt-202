@@ -20,7 +20,15 @@ export function CalorieRing({ consumed, target, size = 180, strokeWidth = 14 }: 
   const remaining = Math.max(target - consumed, 0);
 
   return (
-    <View style={[styles.container, { width: size, height: size }]}>
+    <View
+      style={[styles.container, { width: size, height: size }]}
+      accessibilityRole="progressbar"
+      accessibilityValue={{ now: consumed, min: 0, max: target }}
+      accessibilityLabel={`卡路里摄入 ${consumed} / ${target} kcal`}
+      aria-valuenow={consumed}
+      aria-valuemin={0}
+      aria-valuemax={target}
+    >
       <Svg width={size} height={size} style={styles.svg}>
         <Circle
           cx={size / 2}

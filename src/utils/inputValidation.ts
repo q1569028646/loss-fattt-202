@@ -31,95 +31,35 @@ export interface ValidationResult {
  * 验证年龄输入
  */
 export function validateAge(value: unknown): ValidationResult {
-  const num = typeof value === 'string' ? parseInt(value, 10) : Number(value);
-  
-  if (isNaN(num)) {
-    return { isValid: false, value: VALIDATION_RULES.age.default, error: '请输入有效的数字' };
-  }
-  if (num < VALIDATION_RULES.age.min) {
-    return { isValid: false, value: VALIDATION_RULES.age.min, error: `年龄不能小于${VALIDATION_RULES.age.min}岁` };
-  }
-  if (num > VALIDATION_RULES.age.max) {
-    return { isValid: false, value: VALIDATION_RULES.age.max, error: `年龄不能大于${VALIDATION_RULES.age.max}岁` };
-  }
-  
-  return { isValid: true, value: num };
+  return validateNumber(value, '年龄', VALIDATION_RULES.age.min, VALIDATION_RULES.age.max, VALIDATION_RULES.age.default);
 }
 
 /**
  * 验证身高输入（厘米）
  */
 export function validateHeight(value: unknown): ValidationResult {
-  const num = typeof value === 'string' ? parseInt(value, 10) : Number(value);
-  
-  if (isNaN(num)) {
-    return { isValid: false, value: VALIDATION_RULES.height.default, error: '请输入有效的数字' };
-  }
-  if (num < VALIDATION_RULES.height.min) {
-    return { isValid: false, value: VALIDATION_RULES.height.min, error: `身高不能小于${VALIDATION_RULES.height.min}cm` };
-  }
-  if (num > VALIDATION_RULES.height.max) {
-    return { isValid: false, value: VALIDATION_RULES.height.max, error: `身高不能大于${VALIDATION_RULES.height.max}cm` };
-  }
-  
-  return { isValid: true, value: num };
+  return validateNumber(value, '身高', VALIDATION_RULES.height.min, VALIDATION_RULES.height.max, VALIDATION_RULES.height.default);
 }
 
 /**
  * 验证体重输入（千克）
  */
 export function validateWeight(value: unknown): ValidationResult {
-  const num = typeof value === 'string' ? parseFloat(value) : Number(value);
-  
-  if (isNaN(num)) {
-    return { isValid: false, value: VALIDATION_RULES.weight.default, error: '请输入有效的数字' };
-  }
-  if (num < VALIDATION_RULES.weight.min) {
-    return { isValid: false, value: VALIDATION_RULES.weight.min, error: `体重不能小于${VALIDATION_RULES.weight.min}kg` };
-  }
-  if (num > VALIDATION_RULES.weight.max) {
-    return { isValid: false, value: VALIDATION_RULES.weight.max, error: `体重不能大于${VALIDATION_RULES.weight.max}kg` };
-  }
-  
-  return { isValid: true, value: num };
+  return validateNumber(value, '体重', VALIDATION_RULES.weight.min, VALIDATION_RULES.weight.max, VALIDATION_RULES.weight.default);
 }
 
 /**
  * 验证目标体重输入（千克）
  */
 export function validateGoalWeight(value: unknown): ValidationResult {
-  const num = typeof value === 'string' ? parseFloat(value) : Number(value);
-  
-  if (isNaN(num)) {
-    return { isValid: false, value: VALIDATION_RULES.goalWeight.default, error: '请输入有效的数字' };
-  }
-  if (num < VALIDATION_RULES.goalWeight.min) {
-    return { isValid: false, value: VALIDATION_RULES.goalWeight.min, error: `目标体重不能小于${VALIDATION_RULES.goalWeight.min}kg` };
-  }
-  if (num > VALIDATION_RULES.goalWeight.max) {
-    return { isValid: false, value: VALIDATION_RULES.goalWeight.max, error: `目标体重不能大于${VALIDATION_RULES.goalWeight.max}kg` };
-  }
-  
-  return { isValid: true, value: num };
+  return validateNumber(value, '目标体重', VALIDATION_RULES.goalWeight.min, VALIDATION_RULES.goalWeight.max, VALIDATION_RULES.goalWeight.default);
 }
 
 /**
  * 验证份量输入（克）
  */
 export function validateServingSize(value: unknown): ValidationResult {
-  const num = typeof value === 'string' ? parseFloat(value) : Number(value);
-  
-  if (isNaN(num)) {
-    return { isValid: false, value: VALIDATION_RULES.servingSize.default, error: '请输入有效的数字' };
-  }
-  if (num < VALIDATION_RULES.servingSize.min) {
-    return { isValid: false, value: VALIDATION_RULES.servingSize.min, error: `份量不能小于${VALIDATION_RULES.servingSize.min}g` };
-  }
-  if (num > VALIDATION_RULES.servingSize.max) {
-    return { isValid: false, value: VALIDATION_RULES.servingSize.max, error: `份量不能大于${VALIDATION_RULES.servingSize.max}g` };
-  }
-  
-  return { isValid: true, value: num };
+  return validateNumber(value, '份量', VALIDATION_RULES.servingSize.min, VALIDATION_RULES.servingSize.max, VALIDATION_RULES.servingSize.default);
 }
 
 /**

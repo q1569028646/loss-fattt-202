@@ -11,7 +11,7 @@ import { validateAge, validateHeight, validateWeight, validateGoalWeight } from 
 
 export default function SettingsScreen() {
   const { profile, setGender, setAge, setHeight, setWeight, setGoalWeight, setActivityLevel, setWeightGoal } = useProfileStore();
-  const { activeProviderId, providers, setActiveProvider, setApiKey, setVisionModel, setOcrModel, setChatModel } = useAIProviderStore();
+  const { activeProviderId, providers, setActiveProvider, setApiKey, setModel } = useAIProviderStore();
   const { clearMessages } = useChatStore();
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [visionModelInput, setVisionModelInput] = useState('');
@@ -30,49 +30,28 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleSaveVisionModel = async () => {
-    if (visionModelInput.trim()) {
-      await setVisionModel(activeProviderId, visionModelInput.trim());
-      setVisionModelInput('');
-      Alert.alert('成功', '视觉模型已更新');
-    }
+  type ModelType = 'vision' | 'ocr' | 'chat';
+
+  const MODEL_LABELS: Record<ModelType, string> = {
+    vision: '视觉模型',
+    ocr: 'OCR模型',
+    chat: '对话模型',
   };
 
-  const handleSaveOcrModel = async () => {
-    if (ocrModelInput.trim()) {
-      await setOcrModel(activeProviderId, ocrModelInput.trim());
-      setOcrModelInput('');
-      Alert.alert('成功', 'OCR模型已更新');
-    }
+  const handleSaveModel = (type: ModelType) => async () => {
+    const inputMap = { vision: visionModelInput, ocr: ocrModelInput, chat: chatModelInput };
+    const input = inputMap[type].trim();
+    if (!input) return;
+    await setModel(activeProviderId, type, input);
+    const setInputMap = { vision: setVisionModelInput, ocr: setOcrModelInput, chat: setChatModelInput };
+    setInputMap[type]('');
+    Alert.alert('成功', `${MODEL_LABELS[type]}已更新`);
   };
 
-  const handleSaveChatModel = async () => {
-    if (chatModelInput.trim()) {
-      await setChatModel(activeProviderId, chatModelInput.trim());
-      setChatModelInput('');
-      Alert.alert('成功', '对话模型已更新');
-    }
-  };
-
-  const handleResetVisionModel = async () => {
-    if (activeDefault) {
-      await setVisionModel(activeProviderId, activeDefault.models.vision);
-      Alert.alert('成功', '视觉模型已恢复为默认值');
-    }
-  };
-
-  const handleResetOcrModel = async () => {
-    if (activeDefault) {
-      await setOcrModel(activeProviderId, activeDefault.models.ocr);
-      Alert.alert('成功', 'OCR模型已恢复为默认值');
-    }
-  };
-
-  const handleResetChatModel = async () => {
-    if (activeDefault) {
-      await setChatModel(activeProviderId, activeDefault.models.chat);
-      Alert.alert('成功', '对话模型已恢复为默认值');
-    }
+  const handleResetModel = (type: ModelType) => async () => {
+    if (!activeDefault) return;
+    await setModel(activeProviderId, type, activeDefault.models[type]);
+    Alert.alert('成功', `${MODEL_LABELS[type]}已恢复为默认值`);
   };
 
   const handleClearChat = () => {
@@ -318,11 +297,11 @@ export default function SettingsScreen() {
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
-                <TouchableOpacity style={styles.saveKeyButton} onPress={handleSaveVisionModel}>
+                <TouchableOpacity style={styles.saveKeyButton} onPress={handleSaveModel('vision')}>
                   <Text style={styles.saveKeyButtonText}>更新</Text>
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity style={styles.resetLink} onPress={handleResetVisionModel}>
+              <TouchableOpacity style={styles.resetLink} onPress={handleResetModel('vision')}>
                 <Text style={styles.resetText}>恢复默认: {activeDefault?.models.vision}</Text>
               </TouchableOpacity>
 
@@ -345,11 +324,11 @@ export default function SettingsScreen() {
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
-                <TouchableOpacity style={styles.saveKeyButton} onPress={handleSaveOcrModel}>
+                <TouchableOpacity style={styles.saveKeyButton} onPress={handleSaveModel('ocr')}>
                   <Text style={styles.saveKeyButtonText}>更新</Text>
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity style={styles.resetLink} onPress={handleResetOcrModel}>
+              <TouchableOpacity style={styles.resetLink} onPress={handleResetModel('ocr')}>
                 <Text style={styles.resetText}>恢复默认: {activeDefault?.models.ocr}</Text>
               </TouchableOpacity>
 
@@ -372,11 +351,11 @@ export default function SettingsScreen() {
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
-                <TouchableOpacity style={styles.saveKeyButton} onPress={handleSaveChatModel}>
+                <TouchableOpacity style={styles.saveKeyButton} onPress={handleSaveModel('chat')}>
                   <Text style={styles.saveKeyButtonText}>更新</Text>
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity style={styles.resetLink} onPress={handleResetChatModel}>
+              <TouchableOpacity style={styles.resetLink} onPress={handleResetModel('chat')}>
                 <Text style={styles.resetText}>恢复默认: {activeDefault?.models.chat}</Text>
               </TouchableOpacity>
             </View>

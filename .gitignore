@@ -1,11 +1,10 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
-
 # dependencies
 node_modules/
 
 # Expo
 .expo/
 dist/
+dist-test/
 web-build/
 expo-env.d.ts
 
@@ -32,6 +31,7 @@ yarn-error.*
 
 # local env files
 .env*.local
+.env
 
 # typescript
 *.tsbuildinfo
@@ -39,3 +39,26 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# test scripts
+test-*.js
+test-*.ts
+test_*.js
+test_*.py
+full-test.js
+static-server.js
+
+# screenshot directories
+screenshots/
+test-screenshots/
+test_screenshots/
+
+# root level test images
+/*.png
+/*.jpg
+/*.jpeg
+
+# misc
+123.txt
+skills-lock.json
+.agents/

@@ -103,7 +103,7 @@ export const useAchievementStore = create<AchievementState>((set, get) => ({
           break;
         }
         case 'first_photo': {
-          const hasPhoto = allEntries.some((e: any) => e.imageUri && !e.deletedAt);
+          const hasPhoto = allEntries.some(e => e.imageUri && !e.deletedAt);
           newProgress = hasPhoto ? 1 : 0;
           shouldUnlock = hasPhoto;
           break;
@@ -115,7 +115,7 @@ export const useAchievementStore = create<AchievementState>((set, get) => ({
           break;
         }
         case 'records_100': {
-          const total = allEntries.filter((e: any) => !e.deletedAt).length;
+          const total = allEntries.filter(e => !e.deletedAt).length;
           newProgress = Math.min(total / 100, 1);
           shouldUnlock = total >= 100;
           break;

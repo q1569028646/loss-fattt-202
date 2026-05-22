@@ -85,9 +85,13 @@ export interface WeightEntry {
   createdAt: number;
 }
 
+export type ExerciseType = 'running' | 'walking' | 'swimming' | 'cycling' | 'fitness' | 'yoga' | 'hiit' | 'ball' | 'other';
+
 export interface ExerciseEntry {
   id: string;
-  caloriesKcal: number;
+  type: ExerciseType;
+  durationMin: number;
+  calories: number;
   note?: string;
   createdAt: number;
 }

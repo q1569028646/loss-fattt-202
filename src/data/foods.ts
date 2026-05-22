@@ -1708,27 +1708,40 @@ export function searchFoods(query: string, category?: string, limit: number = 20
     return [];
   }
   const q = query.toLowerCase().trim();
+  const qStripped = stripCookingPrefix(q);
+
   const scored = FOOD_DB
     .filter(f => !category || f.category === category)
     .map(food => {
       let score = 0;
       const nameLower = food.name.toLowerCase();
+      const nameStripped = stripCookingPrefix(nameLower);
+
       if (nameLower === q) score = 100;
       else if (nameLower.startsWith(q)) score = 80;
       else if (nameLower.includes(q)) score = 60;
+      else if (qStripped !== q && nameStripped === qStripped) score = 95;
+      else if (qStripped !== q && nameStripped.startsWith(qStripped)) score = 75;
+      else if (qStripped !== q && nameStripped.includes(qStripped)) score = 55;
+
       if (score === 0) {
         for (const alias of food.aliases) {
           const aliasLower = alias.toLowerCase();
+          const aliasStripped = stripCookingPrefix(aliasLower);
           if (aliasLower === q) { score = 70; break; }
           if (aliasLower.startsWith(q)) { score = 50; break; }
           if (aliasLower.includes(q)) { score = 30; break; }
+          if (qStripped !== q) {
+            if (aliasStripped === qStripped) { score = 65; break; }
+            if (aliasStripped.startsWith(qStripped)) { score = 45; break; }
+            if (aliasStripped.includes(qStripped)) { score = 25; break; }
+          }
         }
       }
       if (score === 0) {
-        for (const char of q) {
-          if (nameLower.includes(char) || food.aliases.some(a => a.toLowerCase().includes(char))) {
-            score = Math.max(score, 10);
-          }
+        const lcsLen = longestCommonSubstringLen(qStripped, nameStripped);
+        if (lcsLen >= 2) {
+          score = Math.min(15 + lcsLen * 5, 40);
         }
       }
       return { food, score };
@@ -1737,6 +1750,50 @@ export function searchFoods(query: string, category?: string, limit: number = 20
     .sort((a, b) => b.score - a.score)
     .slice(0, limit).map(item => item.food);
   return scored;
+}
+
+const COOKING_PREFIXES = [
+  '水煮', '红烧', '清蒸', '干煸', '爆炒', '清炒', '小炒', '葱烧', '酱烧',
+  '糖醋', '鱼香', '麻辣', '酸辣', '蒜蓉', '葱油', '椒盐', '孜然',
+  '凉拌', '热拌', '干锅', '火锅', '冒菜', '香煎', '油焖', '白灼',
+  '干炸', '软炸', '清炖', '红焖', '黄焖', '酱焖',
+  '炖', '煮', '炒', '煎', '炸', '蒸', '烤', '焖', '煲', '卤', '酱', '拌', '焯',
+  '爆', '溜', '扒', '烩', '熬',
+];
+
+function stripCookingPrefix(name: string): string {
+  const trimmed = name.trim();
+  for (const prefix of COOKING_PREFIXES) {
+    if (trimmed.startsWith(prefix)) {
+      const stripped = trimmed.slice(prefix.length).trim();
+      if (stripped.length > 0) return stripped;
+    }
+  }
+  return trimmed;
+}
+
+function longestCommonSubstringLen(s1: string, s2: string): number {
+  if (!s1 || !s2) return 0;
+  const m = s1.length;
+  const n = s2.length;
+  let maxLen = 0;
+  let prev = new Array(n + 1).fill(0);
+  let curr = new Array(n + 1).fill(0);
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (s1[i - 1] === s2[j - 1]) {
+        curr[j] = prev[j - 1] + 1;
+        if (curr[j] > maxLen) maxLen = curr[j];
+      } else {
+        curr[j] = 0;
+      }
+    }
+    const temp = prev;
+    prev = curr;
+    curr = temp;
+    curr.fill(0);
+  }
+  return maxLen;
 }
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -1836,4 +1893,55 @@ export async function deleteCustomFood(id: string): Promise<void> {
 
 export function isCustomFoodId(id: string): boolean {
   return id.startsWith('cf_');
+}
+
+export interface ServingUnit {
+  label: string;
+  grams: number;
+}
+
+const SERVING_UNITS_KEY = 'nutriflow_serving_units';
+
+export async function loadServingUnits(foodId: string): Promise<ServingUnit[]> {
+  try {
+    const raw = await AsyncStorage.getItem(SERVING_UNITS_KEY);
+    const all: Record<string, ServingUnit[]> = raw ? JSON.parse(raw) : {};
+    return all[foodId] || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function loadAllServingUnits(): Promise<Record<string, ServingUnit[]>> {
+  try {
+    const raw = await AsyncStorage.getItem(SERVING_UNITS_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+export async function saveServingUnits(foodId: string, units: ServingUnit[]): Promise<void> {
+  const raw = await AsyncStorage.getItem(SERVING_UNITS_KEY);
+  const all: Record<string, ServingUnit[]> = raw ? JSON.parse(raw) : {};
+  if (units.length === 0) {
+    delete all[foodId];
+  } else {
+    all[foodId] = units;
+  }
+  await AsyncStorage.setItem(SERVING_UNITS_KEY, JSON.stringify(all));
+}
+
+export async function addServingUnit(foodId: string, unit: ServingUnit): Promise<ServingUnit[]> {
+  const units = await loadServingUnits(foodId);
+  units.push(unit);
+  await saveServingUnits(foodId, units);
+  return units;
+}
+
+export async function removeServingUnit(foodId: string, label: string): Promise<ServingUnit[]> {
+  const units = await loadServingUnits(foodId);
+  const filtered = units.filter(u => u.label !== label);
+  await saveServingUnits(foodId, filtered);
+  return filtered;
 }

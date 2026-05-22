@@ -4,13 +4,11 @@ import type { MealType, FoodAnalysisResult, FoodEntry, DayRecord } from '../type
 import { 
   todayKey, 
   yesterdayKey, 
-  getStartOfDay, 
-  getEndOfDay, 
   filterEntriesByDate,
   generateId,
-  getTimestampDaysAgo,
-  DATE_CONSTANTS
+  getTimestampDaysAgo
 } from '../utils/dateUtils';
+import { calcStreak } from '../utils/streakCalc';
 
 const FOOD_KEY = 'nutriflow_food_entries';
 const DAY_KEY = 'nutriflow_day_records';
@@ -275,27 +273,7 @@ export const useFoodStore = create<FoodState>((set, get) => ({
   },
 
   getStreak: () => {
-    const all = get().allEntries;
-    let streak = 0;
-    const now = new Date();
-    for (let i = 0; i < DATE_CONSTANTS.MAX_STREAK_DAYS; i++) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      const dk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      const hasEntry = all.some(e => {
-        const start = getStartOfDay(dk);
-        const end = getEndOfDay(dk);
-        return e.createdAt >= start && e.createdAt <= end && !e.deletedAt;
-      });
-      if (hasEntry) {
-        streak++;
-      } else if (i === 0) {
-        continue;
-      } else {
-        break;
-      }
-    }
-    return streak;
+    return calcStreak(get().allEntries);
   },
 
   getTodayPhotos: () => {

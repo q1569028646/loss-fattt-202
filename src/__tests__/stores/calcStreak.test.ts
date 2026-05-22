@@ -1,9 +1,29 @@
 import { calcStreak } from '../../utils/streakCalc';
+import type { FoodEntry } from '../../types';
 
-function makeEntry(daysAgo: number) {
+function makeEntry(daysAgo: number, overrides?: Partial<FoodEntry>): FoodEntry {
   const d = new Date();
   d.setDate(d.getDate() - daysAgo);
-  return { createdAt: d.getTime(), deletedAt: undefined };
+  return {
+    id: `test_${daysAgo}`,
+    name: 'test',
+    mealType: 'lunch',
+    servingSize: 100,
+    servingUnit: 'g',
+    calories: 200,
+    protein: 10,
+    carbs: 20,
+    fat: 5,
+    fiber: 2,
+    sugar: 3,
+    sodium: 100,
+    aiProviderId: 'test',
+    rawAiResponse: '',
+    isFavorite: false,
+    createdAt: d.getTime(),
+    deletedAt: undefined,
+    ...overrides,
+  };
 }
 
 describe('calcStreak', () => {
@@ -47,10 +67,8 @@ describe('calcStreak', () => {
   });
 
   it('ignores deleted entries', () => {
-    const d0: any = makeEntry(0);
-    d0.deletedAt = Date.now();
     const entries = [
-      d0,
+      makeEntry(0, { deletedAt: Date.now() }),
       makeEntry(1),
       makeEntry(2),
     ];

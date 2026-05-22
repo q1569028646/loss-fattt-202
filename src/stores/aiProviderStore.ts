@@ -11,6 +11,7 @@ interface AIProviderState {
   initialize: () => Promise<void>;
   setApiKey: (providerId: string, key: string) => Promise<void>;
   setActiveProvider: (providerId: string) => void;
+  setModel: (providerId: string, modelType: 'vision' | 'ocr' | 'chat', model: string) => Promise<void>;
   setVisionModel: (providerId: string, model: string) => Promise<void>;
   setOcrModel: (providerId: string, model: string) => Promise<void>;
   setChatModel: (providerId: string, model: string) => Promise<void>;
@@ -82,38 +83,20 @@ export const useAIProviderStore = create<AIProviderState>((set, get) => ({
     set({ activeProviderId: providerId });
   },
 
-  setVisionModel: async (providerId, model) => {
-    await setItemAsync(`ai_vision_${providerId}`, model);
+  setModel: async (providerId, modelType, model) => {
+    await setItemAsync(`ai_${modelType}_${providerId}`, model);
     set(state => ({
       providers: state.providers.map(p =>
         p.id === providerId
-          ? { ...p, models: { ...p.models, vision: model } }
+          ? { ...p, models: { ...p.models, [modelType]: model } }
           : p
       ),
     }));
   },
 
-  setOcrModel: async (providerId, model) => {
-    await setItemAsync(`ai_ocr_${providerId}`, model);
-    set(state => ({
-      providers: state.providers.map(p =>
-        p.id === providerId
-          ? { ...p, models: { ...p.models, ocr: model } }
-          : p
-      ),
-    }));
-  },
-
-  setChatModel: async (providerId, model) => {
-    await setItemAsync(`ai_chat_${providerId}`, model);
-    set(state => ({
-      providers: state.providers.map(p =>
-        p.id === providerId
-          ? { ...p, models: { ...p.models, chat: model } }
-          : p
-      ),
-    }));
-  },
+  setVisionModel: async (providerId, model) => { await get().setModel(providerId, 'vision', model); },
+  setOcrModel: async (providerId, model) => { await get().setModel(providerId, 'ocr', model); },
+  setChatModel: async (providerId, model) => { await get().setModel(providerId, 'chat', model); },
 
   getActiveClient: () => {
     const state = get();

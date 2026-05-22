@@ -3,8 +3,8 @@ export const FOOD_ANALYSIS_SYSTEM_PROMPT = `识别图片中的食物，返回JSO
 {
   "items": [
     {
-      "food_name": "食物名称（中文）",
-      "serving_size_grams": 份量克数,
+      "food_name": "食物名称（中文，尽量具体）",
+      "serving_size_grams": 估算的份量克数,
       "serving_description": "份量描述（如：1碗、1块）",
       "nutrients": {
         "calories_kcal": 热量,
@@ -29,6 +29,7 @@ export const FOOD_ANALYSIS_SYSTEM_PROMPT = `识别图片中的食物，返回JSO
 
 规则：
 - 多食物分开列出，混合菜视为一项
-- 根据常见餐具估算份量
+- 食物名称尽可能具体（如："白米饭"而非"米饭"）
+- 根据常见餐具/容器估算份量克数
 - 模糊/遮挡时降低confidence至0.3-0.5
 - 无法识别返回：{"items":[],"total_estimate":{"calories_kcal":0,"protein_g":0,"carbs_g":0,"fat_g":0},"error":"无法识别"}`;
