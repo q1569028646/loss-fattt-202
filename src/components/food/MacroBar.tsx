@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { COLORS } from '../../utils/constants';
 import { calculatePercentage } from '../../utils/formatters';
 
@@ -67,6 +67,10 @@ const styles = StyleSheet.create({
     height: '100%',
     width: '100%',
     borderRadius: 4,
-    transformOrigin: 'left',
+    ...Platform.select({
+      ios: { transformOrigin: 'left' },
+      android: { transformOrigin: 'left' },
+      web: {},
+    }),
   },
 });
