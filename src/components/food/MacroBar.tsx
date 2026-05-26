@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native
 import { COLORS } from '../../utils/constants';
 import { calculatePercentage } from '../../utils/formatters';
 
+const isWeb = Platform.OS === 'web';
+
 interface MacroBarProps {
   label: string;
   current: number;
@@ -32,7 +34,7 @@ export function MacroBar({ label, current, target, unit = 'g', color }: MacroBar
         aria-valuemin={0}
         aria-valuemax={100}
       >
-        <View style={[styles.fill, { transform: [{ scaleX: clampedPct }], backgroundColor: color }]} />
+        <View style={[styles.fill, { transform: [{ scaleX: clampedPct }], backgroundColor: color, ...(isWeb ? {} : { transformOrigin: 'left' }) }]} />
       </View>
     </View>
   );
@@ -67,10 +69,5 @@ const styles = StyleSheet.create({
     height: '100%',
     width: '100%',
     borderRadius: 4,
-    ...Platform.select({
-      ios: { transformOrigin: 'left' },
-      android: { transformOrigin: 'left' },
-      web: {},
-    }),
   },
 });
